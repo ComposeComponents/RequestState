@@ -1,4 +1,4 @@
-# Units
+# RequestState
 [![Build](https://github.com/ComposeComponents/RequestState/actions/workflows/build.yml/badge.svg)](https://github.com/ComposeComponents/RequestState/actions/workflows/build.yml)
 [![Lint](https://github.com/ComposeComponents/RequestState/actions/workflows/lint.yml/badge.svg)](https://github.com/ComposeComponents/RequestState/actions/workflows/lint.yml)
 
