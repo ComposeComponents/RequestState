@@ -25,3 +25,12 @@ data.handle {
 // Set a state directly
 data.value = RequestState.Success("test")
 ```
+`data` could then be unwrapped in a composable view:
+```kotlin
+RequestStateWidget(
+    data,
+    retry = { /* retry the operation */ }
+) { -> data
+    Text(data)
+}
+```
