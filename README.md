@@ -1,4 +1,4 @@
-# Units
+# RequestState
 [![Build](https://github.com/ComposeComponents/RequestState/actions/workflows/build.yml/badge.svg)](https://github.com/ComposeComponents/RequestState/actions/workflows/build.yml)
 [![Lint](https://github.com/ComposeComponents/RequestState/actions/workflows/lint.yml/badge.svg)](https://github.com/ComposeComponents/RequestState/actions/workflows/lint.yml)
 
@@ -24,4 +24,13 @@ data.handle {
 
 // Set a state directly
 data.value = RequestState.Success("test")
+```
+`data` could then be unwrapped in a composable view:
+```kotlin
+RequestStateWidget(
+    data,
+    retry = { /* retry the operation */ }
+) { -> data
+    Text(data)
+}
 ```
