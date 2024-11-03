@@ -88,7 +88,7 @@ mavenPublishing {
     coordinates("cl.emilym.compose", "requeststate", findProperty("version") as String)
 
     pom {
-        name.set("Standard Button")
+        name.set("RequestState")
         description.set(desc)
         url.set(findProperty("pom.url") as String)
         licenses {
