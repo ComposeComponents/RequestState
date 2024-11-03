@@ -1,7 +1,6 @@
 [versions]
 agp = "8.3.1"
-errorwidget = "1.0.0"
-kotlin = "1.9.0"
+kotlin = "2.0.0"
 coreKtx = "1.12.0"
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -13,11 +12,16 @@ appcompat = "1.6.1"
 material = "1.11.0"
 dokkaVersion = "1.9.20"
 sonatypePublish = "1.2.3"
-units = "1.0.1"
+mavenPublish = "0.30.0"
+compose-plugin = "1.6.11"
+errorwidget = "2.0.0"
+units = "2.0.0"
+lifecycleLivedataCoreKtx = "2.8.7"
 
 [libraries]
+androidx-runtime-livedata = { module = "androidx.compose.runtime:runtime-livedata" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-errorwidget = { module = "cl.emilym.compose:errorwidget", version.ref = "errorwidget" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -31,13 +35,18 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
-androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
-units = { module = "cl.emilym.compose:units", version.ref = "units" }
+emily-errorwidget = { group = "cl.emilym.compose", name = "errorwidget", version.ref = "errorwidget" }
+emily-units = { group = "cl.emilym.compose", name = "units", version.ref = "units" }
+androidx-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "lifecycleLivedataCoreKtx" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 jetbrainsKotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinCocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = "kotlin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokkaVersion" }
 sonatypePublish = { id = "net.thebugmc.gradle.sonatype-central-portal-publisher", version.ref = "sonatypePublish"}
+mavenPublish = { id = "com.vanniktech.maven.publish.base", version.ref = "mavenPublish" }
