@@ -2,9 +2,11 @@ package cl.emilym.compose.requeststate
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import cl.emilym.compose.errorwidget.ErrorWidget
 import cl.emilym.compose.units.rdp
 
@@ -36,7 +38,7 @@ fun <T> RequestStateWidget(
     state: RequestState<T>,
     initial: @Composable () -> Unit,
     loading: @Composable () -> Unit,
-    failure: @Composable (java.lang.Exception) -> Unit,
+    failure: @Composable (Exception) -> Unit,
     success: @Composable (T) -> Unit
 ) {
     when (state) {
