@@ -14,8 +14,8 @@ dokkaVersion = "1.9.20"
 sonatypePublish = "1.2.3"
 mavenPublish = "0.30.0"
 compose-plugin = "1.6.11"
-errorwidget = "2.0.0"
-units = "2.0.0"
+errorwidget = "2.0.2"
+units = "2.0.3"
 lifecycleLivedataCoreKtx = "2.8.7"
 
 [libraries]
