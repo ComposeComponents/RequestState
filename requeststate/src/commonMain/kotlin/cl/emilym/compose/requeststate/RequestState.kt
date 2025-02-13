@@ -8,7 +8,7 @@ sealed interface RequestState<T> {
         val value: T
     ): RequestState<T>
     class Failure<T>(
-        val exception: Exception
+        val exception: Throwable
     ): RequestState<T>
 
 }
