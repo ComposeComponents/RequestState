@@ -13,46 +13,66 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.mapLatest
 
 /**
+ * Create a RequestStateFlow for a retry-able operation that emits a single output
+ *
+ * @param showLoading Whether to silently complete the loading operation in the background
  * @param operation The retry-able operation
  */
-fun <T> requestStateFlow(operation: suspend () -> T): RequestStateFlow<T> {
+fun <T> requestStateFlow(showLoading: Boolean = true, operation: suspend () -> T): RequestStateFlow<T> {
     return SingleRequestStateFlow(
         flowOf(Unit),
-    ) {
-        operation()
-    }
-}
-
-/**
- * @param operation The retry-able operation
- * @receiver An upstream flow who's value is passed to the retry-able operation
- */
-fun <U,T> Flow<U>.requestStateFlow(operation: suspend (U) -> T): RequestStateFlow<T> {
-    return SingleRequestStateFlow(
-        this,
-        operation
+        {
+            operation()
+        },
+        showLoading
     )
 }
 
 /**
- * @param operation The retry-able operation
- */
-fun <T> flatRequestStateFlow(operation: suspend () -> Flow<T>): RequestStateFlow<T> {
-    return FlatRequestStateFlow(
-        flowOf(Unit),
-    ) {
-        operation()
-    }
-}
-
-/**
+ * Create a RequestStateFlow for a retry-able operation that emits a single output with an upstream
+ * flow
+ *
+ * @param showLoading Whether to silently complete the loading operation in the background
  * @param operation The retry-able operation
  * @receiver An upstream flow who's value is passed to the retry-able operation
  */
-fun <U,T> Flow<U>.flatRequestStateFlow(operation: suspend (U) -> Flow<T>): RequestStateFlow<T> {
+fun <U,T> Flow<U>.requestStateFlow(showLoading: Boolean = true, operation: suspend (U) -> T): RequestStateFlow<T> {
+    return SingleRequestStateFlow(
+        this,
+        operation,
+        showLoading
+    )
+}
+
+/**
+ * Create a RequestStateFlow for a retry-able operation that emits a flow output
+ *
+ * @param showLoading Whether to silently complete the loading operation in the background
+ * @param operation The retry-able operation
+ */
+fun <T> flatRequestStateFlow(showLoading: Boolean = true, operation: suspend () -> Flow<T>): RequestStateFlow<T> {
+    return FlatRequestStateFlow(
+        flowOf(Unit),
+        {
+            operation()
+        },
+        showLoading
+    )
+}
+
+/**
+ * Create a RequestStateFlow for a retry-able operation that emits a flow output with an upstream
+ * flow
+ *
+ * @param showLoading Whether to silently complete the loading operation in the background
+ * @param operation The retry-able operation
+ * @receiver An upstream flow who's value is passed to the retry-able operation
+ */
+fun <U,T> Flow<U>.flatRequestStateFlow(showLoading: Boolean = true, operation: suspend (U) -> Flow<T>): RequestStateFlow<T> {
     return FlatRequestStateFlow(
         this,
-        operation
+        operation,
+        showLoading
     )
 }
 
@@ -63,7 +83,8 @@ interface RequestStateFlow<T>: Flow<RequestState<T>> {
 }
 
 internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
-    
+
+    protected abstract val showLoading: Boolean
     protected abstract val upstream: Flow<U>
 
     private val retryTrigger = Channel<Unit>(Channel.CONFLATED).also { it.trySend(Unit) }
@@ -72,27 +93,31 @@ internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
         retryTrigger.send(Unit)
     }
 
-    protected abstract fun handle(up: U): Flow<RequestState<T>>
+    protected abstract val block: suspend FlowCollector<RequestState<T>>.(U) -> Unit
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun collect(collector: FlowCollector<RequestState<T>>) =
         upstream.flatMapLatest { up ->
             retryTrigger.consumeAsFlow()
                 .flatMapLatest {
-                    handle(up)
+                    flow {
+                        emit(RequestState.Loading())
+                        block(this, up)
+                    }
                 }
         }.collect(collector)
 }
 
 internal class FlatRequestStateFlow<U,T> internal constructor(
     override val upstream: Flow<U>,
-    private val operation: suspend (U) -> Flow<T>
+    private val operation: suspend (U) -> Flow<T>,
+    override val showLoading: Boolean
 ): AbstractRequestStateFlow<U, T>() {
 
-    override fun handle(up: U) = flow<RequestState<T>> {
-        emit(RequestState.Loading())
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override val block: suspend FlowCollector<RequestState<T>>.(U) -> Unit = {
         emitAll(
-            operation(up).mapLatest {
+            operation(it).mapLatest {
                 RequestState.Success(it)
             }.catch {
                 emit(RequestState.Failure(it))
@@ -104,17 +129,18 @@ internal class FlatRequestStateFlow<U,T> internal constructor(
 
 internal class SingleRequestStateFlow<U,T> internal constructor(
     override val upstream: Flow<U>,
-    private val operation: suspend (U) -> T
+    private val operation: suspend (U) -> T,
+    override val showLoading: Boolean
 ): AbstractRequestStateFlow<U, T>() {
 
-    override fun handle(up: U): Flow<RequestState<T>> = flow {
-        emit(RequestState.Loading())
+    override val block: suspend FlowCollector<RequestState<T>>.(U) -> Unit = {
         emit(
             try {
-                RequestState.Success(operation(up))
+                RequestState.Success(operation(it))
             } catch (e: Exception) {
                 RequestState.Failure(e)
             }
         )
     }
+
 }
