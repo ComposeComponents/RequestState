@@ -1,22 +1,12 @@
 package cl.emilym.compose.requeststate
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.retry
-import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -30,7 +20,12 @@ class RequestStateFlowTest {
         val operation: suspend () -> String = { "Result" }
         val flow = requestStateFlow(operation = operation)
 
-        val emissions = flow.toList()
+        val emissions = mutableListOf<RequestState<String>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+        advanceUntilIdle()
+        job.cancel()
 
         assertEquals(2, emissions.size)
         assertIs<RequestState.Loading<String>>(emissions[0])
@@ -44,7 +39,12 @@ class RequestStateFlowTest {
         val operation: suspend () -> String = { throw exception }
         val flow = requestStateFlow(operation = operation)
 
-        val emissions = flow.toList()
+        val emissions = mutableListOf<RequestState<String>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+        advanceUntilIdle()
+        job.cancel()
 
         assertEquals(2, emissions.size)
         assertIs<RequestState.Loading<String>>(emissions[0])
@@ -57,7 +57,12 @@ class RequestStateFlowTest {
         val operation: suspend () -> Flow<Int> = { flowOf(1, 2, 3) }
         val flow = flatRequestStateFlow(operation = operation)
 
-        val emissions = flow.toList()
+        val emissions = mutableListOf<RequestState<Int>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+        advanceUntilIdle()
+        job.cancel()
 
         assertEquals(4, emissions.size)
         assertIs<RequestState.Loading<Int>>(emissions[0])
@@ -66,11 +71,22 @@ class RequestStateFlowTest {
 
     @Test
     fun flow_upstream_propagates_values_to_request_state_flow() = runTest {
-        val upstream = flowOf(1, 2, 3)
+        val upstream = flow {
+            emit(1)
+            delay(10)
+            emit(2)
+            delay(10)
+            emit(3)
+        }
         val operation: suspend (Int) -> String = { "Processed: $it" }
         val flow = upstream.requestStateFlow(operation = operation)
 
-        val emissions = flow.toList()
+        val emissions = mutableListOf<RequestState<String>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+        advanceUntilIdle()
+        job.cancel()
 
         assertEquals(6, emissions.size) // 3 Loading + 3 Success
         assertEquals("Processed: 1", (emissions[1] as RequestState.Success).value)
