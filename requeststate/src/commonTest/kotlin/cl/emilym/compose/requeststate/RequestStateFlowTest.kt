@@ -15,6 +15,7 @@ import kotlin.test.assertIs
 
 class RequestStateFlowTest {
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun single_request_state_flow_emits_success() = runTest {
         val operation: suspend () -> String = { "Result" }
@@ -33,6 +34,7 @@ class RequestStateFlowTest {
         assertEquals("Result", (emissions[1] as RequestState.Success).value)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun single_request_state_flow_emits_failure_on_exception() = runTest {
         val exception = RuntimeException("Error")
@@ -52,6 +54,7 @@ class RequestStateFlowTest {
         assertEquals(exception, (emissions[1] as RequestState.Failure).exception)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun flat_request_state_flow_emits_multiple_values() = runTest {
         val operation: suspend () -> Flow<Int> = { flowOf(1, 2, 3) }
@@ -69,6 +72,7 @@ class RequestStateFlowTest {
         assertEquals(listOf(1, 2, 3), emissions.drop(1).map { (it as RequestState.Success).value })
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun flow_upstream_propagates_values_to_request_state_flow() = runTest {
         val upstream = flow {
