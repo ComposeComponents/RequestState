@@ -23,7 +23,7 @@ fun <T> RequestStateWidget(
         failure = { exception ->
             Column(Modifier.padding(1.rdp)) {
                 ErrorWidget(
-                    exception,
+                    (exception as? Exception) ?: Exception(exception) ,
                     null,
                     retry
                 )
@@ -38,7 +38,7 @@ fun <T> RequestStateWidget(
     state: RequestState<T>,
     initial: @Composable () -> Unit,
     loading: @Composable () -> Unit,
-    failure: @Composable (Exception) -> Unit,
+    failure: @Composable (Throwable) -> Unit,
     success: @Composable (T) -> Unit
 ) {
     when (state) {
