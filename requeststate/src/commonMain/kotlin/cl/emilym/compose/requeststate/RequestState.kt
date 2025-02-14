@@ -4,11 +4,11 @@ sealed interface RequestState<T> {
 
     class Initial<T>: RequestState<T>
     class Loading<T>: RequestState<T>
-    class Success<T>(
+    data class Success<T>(
         val value: T
     ): RequestState<T>
-    class Failure<T>(
-        val exception: Exception
+    data class Failure<T>(
+        val exception: Throwable
     ): RequestState<T>
 
 }
