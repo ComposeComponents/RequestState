@@ -100,6 +100,25 @@ class RequestStateFlowTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    // This use case can't be retried by the flow but should be caught regardless
+    fun flow_upstream_propagates_exception_to_request_state_flow() = runTest {
+        val exception = RuntimeException("Error")
+        val operation: suspend (Unit) -> String = { "Result" }
+        val flow = flow<Unit> { throw exception }.requestStateFlow(operation = operation)
+
+        val emissions = mutableListOf<RequestState<String>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+        advanceUntilIdle()
+        job.cancel()
+
+        assertEquals(1, emissions.size)
+        assertIs<RequestState.Failure<String>>(emissions[0])
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun retry_triggers_operation_again() = runTest {
         val mockOperation: suspend () -> String = suspend { "Result" }
         val flow = requestStateFlow(operation = mockOperation)

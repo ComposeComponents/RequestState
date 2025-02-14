@@ -108,6 +108,8 @@ internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
                     block(this, up)
                 }
             }
+        }.catch {
+            emit(RequestState.Failure(it))
         }.collect(collector)
 }
 
