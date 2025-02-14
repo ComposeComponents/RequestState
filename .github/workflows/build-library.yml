@@ -16,109 +16,165 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.gitversion.outputs.semVer }}
-      versionCode: ${{ steps.run_number.outputs.versionCode }}
+      versionCode: ${{ steps.run-number.outputs.versionCode }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Install GitVersion
-      uses: gittools/actions/gitversion/setup@v0.9.6
+      uses: gittools/actions/gitversion/setup@v3.0.0
       with:
         versionSpec: 5.x
     - id: gitversion
       name: Use GitVersion
-      uses: gittools/actions/gitversion/execute@v0.9.6
+      uses: gittools/actions/gitversion/execute@v3.0.0
       with:
         useConfigFile: true
         configFilePath: ./gitversion.yml
-    - name: Display SemVer
-      run: 'echo "SemVer: ${{ steps.gitversion.outputs.semVer }}"'
-  build-android:
+    - id: run-number
+      run: |-
+        current_run_number=${{ github.run_number }}
+        new_number=$((current_run_number+0))
+        echo "versionCode=${new_number}" >> $GITHUB_OUTPUT
+    - name: Generate Job Summary
+      run: |-
+        echo "# Version Info
+        Semantic Version: ${{ steps.gitversion.outputs.semVer }}
+        Version Number: ${{ steps.run-number.outputs.versionCode }}" >> $GITHUB_STEP_SUMMARY
+  build:
     needs:
     - version
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.configuration.os }}
     strategy:
       matrix:
         configuration:
-        - buildCommand: :requeststate:assembleRelease
-          filesystemLocation: ./requeststate/build/outputs/aar/requeststate-release.aar
-          artifactName: requeststate-android.aar
-          artifactKey: requeststate-aar
-          needsZip: false
-          artifactMimeType: application/zip
+        - command: :requeststate:linkPodReleaseFrameworkIosX64
+          os: macos-latest
+          output0:
+            key: requeststate-iosX64-framework
+            name: requeststate-iosX64.framework
+            location: ./requeststate/build/bin/iosX64/podReleaseFramework/requeststate.framework
+            needsZip: true
+          output1:
+            key: requeststate-iosX64-klib
+            name: requeststate-iosX64.klib
+            location: ./requeststate/build/classes/kotlin/iosX64/main/klib/requeststate.klib
+            needsZip: false
+        - command: :requeststate:linkPodReleaseFrameworkIosArm64
+          os: macos-latest
+          output0:
+            key: requeststate-iosArm64-framework
+            name: requeststate-iosArm64.framework
+            location: ./requeststate/build/bin/iosArm64/podReleaseFramework/requeststate.framework
+            needsZip: true
+          output1:
+            key: requeststate-iosArm64-klib
+            name: requeststate-iosArm64.klib
+            location: ./requeststate/build/classes/kotlin/iosArm64/main/klib/requeststate.klib
+            needsZip: false
+        - command: :requeststate:linkPodReleaseFrameworkIosSimulatorArm64
+          os: macos-latest
+          output0:
+            key: requeststate-iosSimulatorArm64-framework
+            name: requeststate-iosSimulatorArm64.framework
+            location: ./requeststate/build/bin/iosSimulatorArm64/podReleaseFramework/requeststate.framework
+            needsZip: true
+          output1:
+            key: requeststate-iosSimulatorArm64-klib
+            name: requeststate-iosSimulatorArm64.klib
+            location: ./requeststate/build/classes/kotlin/iosSimulatorArm64/main/klib/requeststate.klib
+            needsZip: false
+        - command: :requeststate:linkPodReleaseFrameworkMacosX64
+          os: macos-latest
+          output0:
+            key: requeststate-macosX64-framework
+            name: requeststate-macosX64.framework
+            location: ./requeststate/build/bin/macosX64/podReleaseFramework/requeststate.framework
+            needsZip: true
+          output1:
+            key: requeststate-macosX64-klib
+            name: requeststate-macosX64.klib
+            location: ./requeststate/build/classes/kotlin/macosX64/main/klib/requeststate.klib
+            needsZip: false
+        - command: :requeststate:linkPodReleaseFrameworkMacosArm64
+          os: macos-latest
+          output0:
+            key: requeststate-macosArm64-framework
+            name: requeststate-macosArm64.framework
+            location: ./requeststate/build/bin/macosArm64/podReleaseFramework/requeststate.framework
+            needsZip: true
+          output1:
+            key: requeststate-macosArm64-klib
+            name: requeststate-macosArm64.klib
+            location: ./requeststate/build/classes/kotlin/macosArm64/main/klib/requeststate.klib
+            needsZip: false
+        - command: :requeststate:assembleRelease
+          os: ubuntu-latest
+          output0:
+            key: requeststate-android-aar
+            name: requeststate-android.aar
+            location: ./requeststate/build/outputs/aar/requeststate-release.aar
+            needsZip: false
+        - command: :requeststate:jvmJar
+          os: ubuntu-latest
+          output0:
+            key: requeststate-jvm-jar
+            name: requeststate-jvm.jar
+            location: ./requeststate/build/libs/requeststate-jvm-${{ needs.version.outputs.version }}.jar
+            needsZip: false
+        - command: :requeststate:wasmJsJar
+          os: ubuntu-latest
+          output0:
+            key: requeststate-wasm-js-klib
+            name: requeststate-wasm-js.klib
+            location: ./requeststate/build/libs/requeststate-wasm-js-${{ needs.version.outputs.version }}.klib
+            needsZip: false
+        - command: :requeststate:jsJar
+          os: ubuntu-latest
+          output0:
+            key: requeststate-js-klib
+            name: requeststate-js.klib
+            location: ./requeststate/build/libs/requeststate-js-${{ needs.version.outputs.version }}.klib
+            needsZip: false
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up JDK 17
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: temurin
+    - name: Setup gradle
+      uses: gradle/actions/setup-gradle@v3
     - name: Build with Gradle
       env:
         ORG_GRADLE_PROJECT_version: ${{ needs.version.outputs.version }}
-      uses: gradle/gradle-build-action@67421db6bd0bf253fb4bd25b31ebb98943c375e1
+      run: ./gradlew ${{ matrix.configuration.command }}
+    - name: Rename Artifact (Output 0)
+      if: contains(toJSON(matrix.configuration), 'output0')
+      run: mv ${{ matrix.configuration.output0.location }} ./${{ matrix.configuration.output0.name }}
+    - name: Zip if Needed (Output 0)
+      if: contains(toJSON(matrix.configuration), 'output0') && matrix.configuration.output0.needsZip
+      run: zip -r ${{ matrix.configuration.output0.name }}.zip ./${{ matrix.configuration.output0.name }}
+    - name: Upload Artifact (Output 0)
+      if: contains(toJSON(matrix.configuration), 'output0')
+      uses: actions/upload-artifact@v4
       with:
-        arguments: ${{ matrix.configuration.buildCommand }}
-    - name: Rename Artifact
-      run: mv ${{ matrix.configuration.filesystemLocation }} ./${{ matrix.configuration.artifactName }}
-    - name: Zip if needed
-      if: ${{ matrix.configuration.needsZip }}
-      run: zip -r ${{ matrix.configuration.artifactName }}.zip ./${{ matrix.configuration.artifactName }}
-    - uses: actions/upload-artifact@master
+        name: ${{ matrix.configuration.output0.key }}
+        path: ./${{ matrix.configuration.output0.name }}${{ matrix.configuration.output0.needsZip && '.zip' || '' }}
+    - name: Rename Artifact (Output 1)
+      if: contains(toJSON(matrix.configuration), 'output1')
+      run: mv ${{ matrix.configuration.output1.location }} ./${{ matrix.configuration.output1.name }}
+    - name: Zip if Needed (Output 1)
+      if: contains(toJSON(matrix.configuration), 'output1') && matrix.configuration.output1.needsZip
+      run: zip -r ${{ matrix.configuration.output1.name }}.zip ./${{ matrix.configuration.output1.name }}
+    - name: Upload Artifact (Output 1)
+      if: contains(toJSON(matrix.configuration), 'output1')
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.configuration.artifactKey }}
-        path: ./${{ matrix.configuration.artifactName }}${{ matrix.configuration.needsZip && '.zip' || '' }}
-  build-ios:
-    needs:
-    - version
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        configuration:
-        - buildCommand: :requeststate:linkPodReleaseFrameworkIosArm64
-          filesystemLocation: ./requeststate/build/bin/iosArm64/podReleaseFramework/requeststate.framework
-          artifactName: requeststate-iosArm64.framework
-          artifactKey: requeststate-iosArm64
-          needsZip: true
-          artifactMimeType: application/zip
-        - buildCommand: :requeststate:linkPodReleaseFrameworkIosSimulatorArm64
-          filesystemLocation: ./requeststate/build/bin/iosSimulatorArm64/podReleaseFramework/requeststate.framework
-          artifactName: requeststate-iosSimulatorArm64.framework
-          artifactKey: requeststate-iosSimulatorArm64
-          needsZip: true
-          artifactMimeType: application/zip
-        - buildCommand: :requeststate:linkPodReleaseFrameworkIosX64
-          filesystemLocation: ./requeststate/build/bin/iosX64/podReleaseFramework/requeststate.framework
-          artifactName: requeststate-iosX64.framework
-          artifactKey: requeststate-iosX64
-          needsZip: true
-          artifactMimeType: application/zip
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Set up JDK 17
-      uses: actions/setup-java@v3
-      with:
-        java-version: '17'
-        distribution: temurin
-    - name: Build with Gradle
-      env:
-        ORG_GRADLE_PROJECT_version: ${{ needs.version.outputs.version }}
-      uses: gradle/gradle-build-action@67421db6bd0bf253fb4bd25b31ebb98943c375e1
-      with:
-        arguments: ${{ matrix.configuration.buildCommand }}
-    - name: Rename Artifact
-      run: mv ${{ matrix.configuration.filesystemLocation }} ./${{ matrix.configuration.artifactName }}
-    - name: Zip if needed
-      if: ${{ matrix.configuration.needsZip }}
-      run: zip -r ${{ matrix.configuration.artifactName }}.zip ./${{ matrix.configuration.artifactName }}
-    - uses: actions/upload-artifact@master
-      with:
-        name: ${{ matrix.configuration.artifactKey }}
-        path: ./${{ matrix.configuration.artifactName }}${{ matrix.configuration.needsZip && '.zip' || '' }}
+        name: ${{ matrix.configuration.output1.key }}
+        path: ./${{ matrix.configuration.output1.name }}${{ matrix.configuration.output1.needsZip && '.zip' || '' }}
   release:
     permissions:
       contents: write
@@ -129,9 +185,13 @@ jobs:
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+    - name: Create tag for release
+      uses: rickstaa/action-create-tag@v1
+      with:
+        tag: v${{ needs.version.outputs.version }}
     - id: create_release
       name: Create Release
       uses: softprops/action-gh-release@v2
@@ -145,26 +205,55 @@ jobs:
     needs:
     - version
     - release
-    - build-android
-    - build-ios
+    - build
     runs-on: ubuntu-latest
     strategy:
       matrix:
         artifact:
-        - key: requeststate-iosArm64
-          name: requeststate-iosArm64.framework.zip
-          mimeType: application/zip
-        - key: requeststate-iosSimulatorArm64
-          name: requeststate-iosSimulatorArm64.framework.zip
-          mimeType: application/zip
-        - key: requeststate-iosX64
+        - key: requeststate-iosX64-framework
           name: requeststate-iosX64.framework.zip
           mimeType: application/zip
-        - key: requeststate-aar
+        - key: requeststate-iosX64-klib
+          name: requeststate-iosX64.klib
+          mimeType: application/zip
+        - key: requeststate-iosArm64-framework
+          name: requeststate-iosArm64.framework.zip
+          mimeType: application/zip
+        - key: requeststate-iosArm64-klib
+          name: requeststate-iosArm64.klib
+          mimeType: application/zip
+        - key: requeststate-iosSimulatorArm64-framework
+          name: requeststate-iosSimulatorArm64.framework.zip
+          mimeType: application/zip
+        - key: requeststate-iosSimulatorArm64-klib
+          name: requeststate-iosSimulatorArm64.klib
+          mimeType: application/zip
+        - key: requeststate-macosX64-framework
+          name: requeststate-macosX64.framework.zip
+          mimeType: application/zip
+        - key: requeststate-macosX64-klib
+          name: requeststate-macosX64.klib
+          mimeType: application/zip
+        - key: requeststate-macosArm64-framework
+          name: requeststate-macosArm64.framework.zip
+          mimeType: application/zip
+        - key: requeststate-macosArm64-klib
+          name: requeststate-macosArm64.klib
+          mimeType: application/zip
+        - key: requeststate-android-aar
           name: requeststate-android.aar
           mimeType: application/zip
+        - key: requeststate-jvm-jar
+          name: requeststate-jvm.jar
+          mimeType: application/zip
+        - key: requeststate-wasm-js-klib
+          name: requeststate-wasm-js.klib
+          mimeType: application/zip
+        - key: requeststate-js-klib
+          name: requeststate-js.klib
+          mimeType: application/zip
     steps:
-    - uses: actions/download-artifact@master
+    - uses: actions/download-artifact@v4
       with:
         name: ${{ matrix.artifact.key }}
         path: ./
@@ -175,7 +264,7 @@ jobs:
     - name: Upload Artifact to Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      uses: actions/upload-release-asset@v1
+      uses: shogo82148/actions-upload-release-asset@v1
       with:
         upload_url: ${{ needs.release.outputs.upload_url }}
         asset_path: ./${{ matrix.artifact.name }}
@@ -193,26 +282,26 @@ jobs:
         module:
         - requeststate
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up JDK 17
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: temurin
+    - name: Setup gradle
+      uses: gradle/actions/setup-gradle@v3
     - name: Build with Gradle
       env:
         ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
         ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME }}
         ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.PGP_SECRET_KMP }}
         ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.PGP_PASSPHRASE }}
-      uses: gradle/gradle-build-action@67421db6bd0bf253fb4bd25b31ebb98943c375e1
-      with:
-        arguments: |-
-          -Pversion=${{ needs.version.outputs.version }}
-          -Ppom.url="https://github.com/${{ github.repository }}"
-          -Ppom.scm.connection="scm:git:git://github.com/${{ github.repository }}"
-          -Ppom.scm.developerConnection="scm:git:ssh://github.com/${{ github.repository }}"
-          -Ppom.scm.url="https://github.com/${{ github.repository }}"
-          ${{ matrix.module }}:publishAndReleaseToMavenCentral --no-configuration-cache
+      run: |-
+        ./gradlew -Pversion=${{ needs.version.outputs.version }} \
+        -Ppom.url="https://github.com/${{ github.repository }}" \
+        -Ppom.scm.connection="scm:git:git://github.com/${{ github.repository }}" \
+        -Ppom.scm.developerConnection="scm:git:ssh://github.com/${{ github.repository }}" \
+        -Ppom.scm.url="https://github.com/${{ github.repository }}" \
+        ${{ matrix.module }}:publishToMavenCentral --no-configuration-cache
