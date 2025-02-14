@@ -7,10 +7,15 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flatMap
+import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onStart
 
 /**
  * Create a RequestStateFlow for a retry-able operation that emits a single output
@@ -87,7 +92,7 @@ internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
     protected abstract val showLoading: Boolean
     protected abstract val upstream: Flow<U>
 
-    private val retryTrigger = Channel<Unit>(Channel.CONFLATED).also { it.trySend(Unit) }
+    private val retryTrigger = Channel<Unit>(Channel.CONFLATED)
 
     override suspend fun retry() {
         retryTrigger.send(Unit)
@@ -98,13 +103,15 @@ internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun collect(collector: FlowCollector<RequestState<T>>) =
         upstream.flatMapLatest { up ->
-            retryTrigger.consumeAsFlow()
-                .flatMapLatest {
-                    flow {
-                        emit(RequestState.Loading())
-                        block(this, up)
-                    }
+            merge(
+                flowOf(Unit),
+                retryTrigger.consumeAsFlow()
+            ).flatMapLatest {
+                flow {
+                    emit(RequestState.Loading())
+                    block(this, up)
                 }
+            }
         }.collect(collector)
 }
 
