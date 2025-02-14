@@ -131,12 +131,16 @@ class RequestStateFlowTest {
         advanceUntilIdle()
         flow.retry()
         advanceUntilIdle()
+        flow.retry()
+        advanceUntilIdle()
         job.cancel()
 
-        assertEquals(4, emissions.size)
+        assertEquals(6, emissions.size)
         assertIs<RequestState.Loading<String>>(emissions[0])
         assertIs<RequestState.Success<String>>(emissions[1])
         assertIs<RequestState.Loading<String>>(emissions[2])
         assertIs<RequestState.Success<String>>(emissions[3])
+        assertIs<RequestState.Loading<String>>(emissions[4])
+        assertIs<RequestState.Success<String>>(emissions[5])
     }
 }
