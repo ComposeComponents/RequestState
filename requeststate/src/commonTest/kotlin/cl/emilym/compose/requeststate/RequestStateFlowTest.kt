@@ -36,6 +36,27 @@ class RequestStateFlowTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun single_request_state_flow_with_showLoading_false_emits_success_and_no_loading() = runTest {
+        val operation: suspend () -> String = { "Result" }
+        val flow = requestStateFlow(
+            operation = operation,
+            showLoading = false
+        )
+
+        val emissions = mutableListOf<RequestState<String>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+        advanceUntilIdle()
+        job.cancel()
+
+        assertEquals(1, emissions.size)
+        assertIs<RequestState.Success<String>>(emissions[0])
+        assertEquals("Result", (emissions[0] as RequestState.Success).value)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun single_request_state_flow_emits_failure_on_exception() = runTest {
         val exception = RuntimeException("Error")
         val operation: suspend () -> String = { throw exception }
