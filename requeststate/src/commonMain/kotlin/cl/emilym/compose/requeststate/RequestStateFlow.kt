@@ -104,7 +104,7 @@ internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
                 retryTrigger.consumeAsFlow()
             ).flatMapLatest {
                 flow {
-                    emit(RequestState.Loading())
+                    if (showLoading) emit(RequestState.Loading())
                     block(this, up)
                 }
             }
