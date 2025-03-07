@@ -24,10 +24,3 @@ fun <T> RequestState<T>.unwrap(default: T): T {
         else -> default
     }
 }
-
-fun <T> RequestState<T>.unwrapNullable(default: T? = null): T? {
-    return when (this) {
-        is RequestState.Success -> value
-        else -> default
-    }
-}

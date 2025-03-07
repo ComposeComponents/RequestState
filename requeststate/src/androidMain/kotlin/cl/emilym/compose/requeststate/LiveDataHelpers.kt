@@ -45,7 +45,7 @@ fun <T> LiveData<RequestState<T>>.unwrap(default: T): LiveData<T> {
 fun <T> LiveData<RequestState<T>>.unwrapNullable(default: T? = null): LiveData<T?> {
     val mediator = MediatorLiveData<T?>()
     mediator.addSource(this) {
-        mediator.value = it.unwrapNullable(default)
+        mediator.value = it.unwrap() ?: default
     }
 
     return mediator

@@ -36,6 +36,6 @@ fun <T> Flow<RequestState<T>>.unwrap(default: T): Flow<T> {
 
 fun <T> Flow<RequestState<T>>.unwrapNullable(default: T? = null): Flow<T?> {
     return map {
-        it.unwrapNullable(default)
+        it.unwrap() ?: default
     }
 }
