@@ -31,12 +31,16 @@ fun <T,O> LiveData<RequestState<T>>.child(
 ): LiveData<RequestState<O>> {
     val mediator = MediatorLiveData<RequestState<O>>()
     mediator.addSource(this) {
-        mediator.value = when (it) {
-            is RequestState.Initial -> RequestState.Initial()
-            is RequestState.Loading -> RequestState.Loading()
-            is RequestState.Failure -> RequestState.Failure(it.exception)
-            is RequestState.Success -> RequestState.Success(transform(it.value))
-        }
+        mediator.value = it.map { transform(it) }
+    }
+
+    return mediator
+}
+
+fun <T> LiveData<RequestState<T>>.unwrap(): LiveData<T?> {
+    val mediator = MediatorLiveData<T>()
+    mediator.addSource(this) {
+        mediator.value = it.unwrap()
     }
 
     return mediator
@@ -50,10 +54,7 @@ fun <T,O> LiveData<RequestState<T>>.child(
 fun <T> LiveData<RequestState<T>>.unwrap(default: T): LiveData<T> {
     val mediator = MediatorLiveData<T>()
     mediator.addSource(this) {
-        mediator.value = when (it) {
-            is RequestState.Success -> it.value
-            else -> default
-        }
+        mediator.value = it.unwrap(default)
     }
 
     return mediator
@@ -67,10 +68,7 @@ fun <T> LiveData<RequestState<T>>.unwrap(default: T): LiveData<T> {
 fun <T> LiveData<RequestState<T>>.unwrapNullable(default: T? = null): LiveData<T?> {
     val mediator = MediatorLiveData<T?>()
     mediator.addSource(this) {
-        mediator.value = when (it) {
-            is RequestState.Success -> it.value
-            else -> default
-        }
+        mediator.value = it.unwrap() ?: default
     }
 
     return mediator

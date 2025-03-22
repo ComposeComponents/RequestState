@@ -30,12 +30,7 @@ fun <T,O> Flow<RequestState<T>>.child(
     transform: (T) -> O
 ): Flow<RequestState<O>> {
     return map {
-        when (it) {
-            is RequestState.Initial -> RequestState.Initial()
-            is RequestState.Loading -> RequestState.Loading()
-            is RequestState.Failure -> RequestState.Failure(it.exception)
-            is RequestState.Success -> RequestState.Success(transform(it.value))
-        }
+        it.map { transform(it) }
     }
 }
 
@@ -44,12 +39,16 @@ fun <T,O> Flow<RequestState<T>>.child(
  *
  * @param default The default value
  */
+fun <T> Flow<RequestState<T>>.unwrap(): Flow<T?> {
+    return map {
+        it.unwrap()
+    }
+}
+
+
 fun <T> Flow<RequestState<T>>.unwrap(default: T): Flow<T> {
     return map {
-        when (it) {
-            is RequestState.Success -> it.value
-            else -> default
-        }
+        it.unwrap(default)
     }
 }
 
@@ -60,9 +59,6 @@ fun <T> Flow<RequestState<T>>.unwrap(default: T): Flow<T> {
  */
 fun <T> Flow<RequestState<T>>.unwrapNullable(default: T? = null): Flow<T?> {
     return map {
-        when (it) {
-            is RequestState.Success -> it.value
-            else -> default
-        }
+        it.unwrap() ?: default
     }
 }
