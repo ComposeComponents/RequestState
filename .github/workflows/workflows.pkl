@@ -18,6 +18,6 @@ workflows = new Listing {
             target.buildJsMultiplatformTarget("requeststate")
         }
     }
-    import("package://components.emilym.cl/actions/actions@0.1.13#/lint.pkl")
+    import("package://components.emilym.cl/actions/actions@0.1.16#/lint.pkl")
     import("test.pkl")
 }
