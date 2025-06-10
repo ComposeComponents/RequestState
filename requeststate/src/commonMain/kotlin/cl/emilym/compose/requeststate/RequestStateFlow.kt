@@ -1,9 +1,11 @@
 package cl.emilym.compose.requeststate
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.emitAll
@@ -88,10 +90,13 @@ internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
     protected abstract val showLoading: Boolean
     protected abstract val upstream: Flow<U>
 
-    private val retryTrigger = Channel<Unit>(Channel.CONFLATED)
+    private val retryTrigger = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
 
     override suspend fun retry() {
-        retryTrigger.send(Unit)
+        retryTrigger.emit(Unit)
     }
 
     protected abstract val block: suspend FlowCollector<RequestState<T>>.(U) -> Unit
@@ -101,11 +106,13 @@ internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
         upstream.flatMapLatest { up ->
             merge(
                 flowOf(Unit),
-                retryTrigger.consumeAsFlow()
+                retryTrigger
             ).flatMapLatest {
                 flow {
                     if (showLoading) emit(RequestState.Loading())
                     block(this, up)
+                }.catch {
+                    emit(RequestState.Failure(it))
                 }
             }
         }.catch {
