@@ -164,4 +164,83 @@ class RequestStateFlowTest {
         assertIs<RequestState.Loading<String>>(emissions[4])
         assertIs<RequestState.Success<String>>(emissions[5])
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun single_request_state_flow_with_config_showLoadingOnEmission_false_emits_success_and_no_loading() = runTest {
+        val operation: suspend () -> String = { "Result" }
+        val flow = requestStateFlow(
+            operation = operation,
+            config = RequestStateConfig(
+                showLoadingOnEmission = false
+            )
+        )
+
+        val emissions = mutableListOf<RequestState<String>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+        advanceUntilIdle()
+        job.cancel()
+
+        assertEquals(1, emissions.size)
+        assertIs<RequestState.Success<String>>(emissions[0])
+        assertEquals("Result", (emissions[0] as RequestState.Success).value)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun single_request_state_flow_with_config_showLoadingOnRetry_false_emits_success_and_no_loading_on_retry() = runTest {
+        val operation: suspend () -> String = { "Result" }
+        val flow = requestStateFlow(
+            operation = operation,
+            config = RequestStateConfig(
+                showLoadingOnRetry = false
+            )
+        )
+
+        val emissions = mutableListOf<RequestState<String>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+        advanceUntilIdle()
+        flow.retry()
+        advanceUntilIdle()
+        job.cancel()
+
+        assertEquals(3, emissions.size)
+        assertIs<RequestState.Success<String>>(emissions[1])
+        assertEquals("Result", (emissions[1] as RequestState.Success).value)
+        assertIs<RequestState.Success<String>>(emissions[2])
+        assertEquals("Result", (emissions[2] as RequestState.Success).value)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun single_request_state_flow_with_config_waitUntilRetry_true_does_no_emit_until_retry() = runTest {
+        val operation: suspend () -> String = { "Result" }
+        val flow = requestStateFlow(
+            operation = operation,
+            config = RequestStateConfig(
+                waitUntilRetry = true
+            )
+        )
+
+        val emissions = mutableListOf<RequestState<String>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+        advanceUntilIdle()
+
+        assertEquals(0, emissions.size)
+
+        flow.retry()
+        advanceUntilIdle()
+        job.cancel()
+
+        assertEquals(2, emissions.size)
+        assertIs<RequestState.Success<String>>(emissions[1])
+        assertEquals("Result", (emissions[1] as RequestState.Success).value)
+    }
+
 }
