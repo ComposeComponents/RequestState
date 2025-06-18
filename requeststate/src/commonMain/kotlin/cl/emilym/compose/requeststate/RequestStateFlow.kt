@@ -15,23 +15,17 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.merge
 
+/**
+ * @property showLoadingOnEmission Whether to emit a RequestState.Loading value when subscribing or
+ * there is a new upstream emission.
+ * @property showLoadingOnRetry Whether to emit a RequestState.Loading value when retry() is called.
+ * @property waitUntilRetry Whether to wait until a retry() call is executed before further computation.
+ *
+ * This is useful in the case where a UI element needs to trigger some kind of data operation.
+ */
 data class RequestStateConfig(
-    /**
-     * Whether to emit a RequestState.Loading value when subscribing or there is a new upstream
-     * emission.
-     */
     val showLoadingOnEmission: Boolean = true,
-
-    /**
-     * Whether to emit a RequestState.Loading value when retry() is called.
-     */
     val showLoadingOnRetry: Boolean = true,
-
-    /**
-     * Whether to wait until a retry() call is executed before further computation.
-     *
-     * This is useful in the case where a UI element needs to trigger some kind of data operation.
-     */
     val waitUntilRetry: Boolean = false
 ) {
     
