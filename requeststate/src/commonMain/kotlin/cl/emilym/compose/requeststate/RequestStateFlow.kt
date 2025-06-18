@@ -15,19 +15,63 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.merge
 
+data class RequestStateConfig(
+    /**
+     * Whether to emit a RequestState.Loading value when subscribing or there is a new upstream
+     * emission.
+     */
+    val showLoadingOnEmission: Boolean = true,
+
+    /**
+     * Whether to emit a RequestState.Loading value when retry() is called.
+     */
+    val showLoadingOnRetry: Boolean = true,
+
+    /**
+     * Whether to wait until a retry() call is executed before further computation.
+     *
+     * This is useful in the case where a UI element needs to trigger some kind of data operation.
+     */
+    val waitUntilRetry: Boolean = false
+) {
+    
+    companion object {
+        
+        internal fun fromShowLoading(showLoading: Boolean): RequestStateConfig =
+            RequestStateConfig(
+                showLoadingOnEmission = showLoading,
+                showLoadingOnRetry = showLoading
+            )
+        
+    }
+    
+}
+
 /**
  * Create a RequestStateFlow for a retry-able operation that emits a single output
  *
  * @param showLoading Whether to silently complete the loading operation in the background
  * @param operation The retry-able operation
  */
-fun <T> requestStateFlow(showLoading: Boolean = true, operation: suspend () -> T): RequestStateFlow<T> {
+fun <T> requestStateFlow(showLoading: Boolean = true, operation: suspend () -> T): RequestStateFlow<T> =
+    requestStateFlow(
+        config = RequestStateConfig.fromShowLoading(showLoading),
+        operation = operation
+    )
+
+/**
+ * Create a RequestStateFlow for a retry-able operation that emits a single output
+ *
+ * @param config Configure the behaviour of the RequestStateFlow
+ * @param operation The retry-able operation
+ */
+fun <T> requestStateFlow(config: RequestStateConfig, operation: suspend () -> T): RequestStateFlow<T> {
     return SingleRequestStateFlow(
         flowOf(Unit),
         {
             operation()
         },
-        showLoading
+        config
     )
 }
 
@@ -39,11 +83,31 @@ fun <T> requestStateFlow(showLoading: Boolean = true, operation: suspend () -> T
  * @param operation The retry-able operation
  * @receiver An upstream flow who's value is passed to the retry-able operation
  */
-fun <U,T> Flow<U>.requestStateFlow(showLoading: Boolean = true, operation: suspend (U) -> T): RequestStateFlow<T> {
+fun <U,T> Flow<U>.requestStateFlow(
+    showLoading: Boolean = true,
+    operation: suspend (U) -> T
+): RequestStateFlow<T> =
+    this.requestStateFlow(
+        config = RequestStateConfig.fromShowLoading(showLoading),
+        operation = operation
+    )
+
+/**
+ * Create a RequestStateFlow for a retry-able operation that emits a single output with an upstream
+ * flow
+ *
+ * @param config Configure the behaviour of the RequestStateFlow
+ * @param operation The retry-able operation
+ * @receiver An upstream flow who's value is passed to the retry-able operation
+ */
+fun <U,T> Flow<U>.requestStateFlow(
+    config: RequestStateConfig,
+    operation: suspend (U) -> T
+): RequestStateFlow<T> {
     return SingleRequestStateFlow(
         this,
         operation,
-        showLoading
+        config
     )
 }
 
@@ -53,13 +117,31 @@ fun <U,T> Flow<U>.requestStateFlow(showLoading: Boolean = true, operation: suspe
  * @param showLoading Whether to silently complete the loading operation in the background
  * @param operation The retry-able operation
  */
-fun <T> flatRequestStateFlow(showLoading: Boolean = true, operation: suspend () -> Flow<T>): RequestStateFlow<T> {
+fun <T> flatRequestStateFlow(
+    showLoading: Boolean = true,
+    operation: suspend () -> Flow<T>
+): RequestStateFlow<T> =
+    flatRequestStateFlow(
+        config = RequestStateConfig.fromShowLoading(showLoading),
+        operation = operation
+    )
+
+/**
+ * Create a RequestStateFlow for a retry-able operation that emits a flow output
+ *
+ * @param config Configure the behaviour of the RequestStateFlow
+ * @param operation The retry-able operation
+ */
+fun <T> flatRequestStateFlow(
+    config: RequestStateConfig,
+    operation: suspend () -> Flow<T>
+): RequestStateFlow<T> {
     return FlatRequestStateFlow(
         flowOf(Unit),
         {
             operation()
         },
-        showLoading
+        config
     )
 }
 
@@ -71,11 +153,31 @@ fun <T> flatRequestStateFlow(showLoading: Boolean = true, operation: suspend () 
  * @param operation The retry-able operation
  * @receiver An upstream flow who's value is passed to the retry-able operation
  */
-fun <U,T> Flow<U>.flatRequestStateFlow(showLoading: Boolean = true, operation: suspend (U) -> Flow<T>): RequestStateFlow<T> {
+fun <U,T> Flow<U>.flatRequestStateFlow(
+    showLoading: Boolean = true,
+    operation: suspend (U) -> Flow<T>
+): RequestStateFlow<T> =
+    this.flatRequestStateFlow(
+        config = RequestStateConfig.fromShowLoading(showLoading),
+        operation = operation
+    )
+
+/**
+ * Create a RequestStateFlow for a retry-able operation that emits a flow output with an upstream
+ * flow
+ *
+ * @param config Configure the behaviour of the RequestStateFlow
+ * @param operation The retry-able operation
+ * @receiver An upstream flow who's value is passed to the retry-able operation
+ */
+fun <U,T> Flow<U>.flatRequestStateFlow(
+    config: RequestStateConfig,
+    operation: suspend (U) -> Flow<T>
+): RequestStateFlow<T> {
     return FlatRequestStateFlow(
         this,
         operation,
-        showLoading
+        config
     )
 }
 
@@ -87,16 +189,16 @@ interface RequestStateFlow<T>: Flow<RequestState<T>> {
 
 internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
 
-    protected abstract val showLoading: Boolean
+    protected abstract val config: RequestStateConfig
     protected abstract val upstream: Flow<U>
 
-    private val retryTrigger = MutableSharedFlow<Unit>(
+    private val retryTrigger = MutableSharedFlow<TriggerSource>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
     override suspend fun retry() {
-        retryTrigger.emit(Unit)
+        retryTrigger.emit(TriggerSource.RETRY)
     }
 
     protected abstract val block: suspend FlowCollector<RequestState<T>>.(U) -> Unit
@@ -105,11 +207,17 @@ internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
     override suspend fun collect(collector: FlowCollector<RequestState<T>>) =
         upstream.flatMapLatest { up ->
             merge(
-                flowOf(Unit),
+                when (config.waitUntilRetry) {
+                    true -> flowOf()
+                    else -> flowOf(TriggerSource.EMISSION)
+                },
                 retryTrigger
-            ).flatMapLatest {
+            ).flatMapLatest { triggerSource ->
                 flow {
-                    if (showLoading) emit(RequestState.Loading())
+                    if (
+                        (triggerSource == TriggerSource.RETRY && config.showLoadingOnRetry) ||
+                        (triggerSource == TriggerSource.EMISSION && config.showLoadingOnEmission)
+                    ) emit(RequestState.Loading())
                     block(this, up)
                 }.catch {
                     emit(RequestState.Failure(it))
@@ -118,12 +226,16 @@ internal abstract class AbstractRequestStateFlow<U, T>: RequestStateFlow<T> {
         }.catch {
             emit(RequestState.Failure(it))
         }.collect(collector)
+
+    private enum class TriggerSource {
+        RETRY, EMISSION
+    }
 }
 
 internal class FlatRequestStateFlow<U,T> internal constructor(
     override val upstream: Flow<U>,
     private val operation: suspend (U) -> Flow<T>,
-    override val showLoading: Boolean
+    override val config: RequestStateConfig
 ): AbstractRequestStateFlow<U, T>() {
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -142,7 +254,7 @@ internal class FlatRequestStateFlow<U,T> internal constructor(
 internal class SingleRequestStateFlow<U,T> internal constructor(
     override val upstream: Flow<U>,
     private val operation: suspend (U) -> T,
-    override val showLoading: Boolean
+    override val config: RequestStateConfig
 ): AbstractRequestStateFlow<U, T>() {
 
     override val block: suspend FlowCollector<RequestState<T>>.(U) -> Unit = {
