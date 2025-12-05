@@ -167,6 +167,86 @@ class RequestStateFlowTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun retry_token_triggers_operation_again() = runTest {
+        val mockOperation: suspend () -> String = suspend { "Result" }
+        val token = RetryToken()
+        val flow = requestStateFlow(
+            token = token,
+            operation = mockOperation
+        )
+
+        val emissions = mutableListOf<RequestState<String>>()
+        val job = flow
+            .onEach { emissions.add(it) }
+            .launchIn(this)
+
+        advanceUntilIdle()
+        token.retry()
+        advanceUntilIdle()
+        token.retry()
+        advanceUntilIdle()
+        job.cancel()
+
+        assertEquals(6, emissions.size)
+        assertIs<RequestState.Loading<String>>(emissions[0])
+        assertIs<RequestState.Success<String>>(emissions[1])
+        assertIs<RequestState.Loading<String>>(emissions[2])
+        assertIs<RequestState.Success<String>>(emissions[3])
+        assertIs<RequestState.Loading<String>>(emissions[4])
+        assertIs<RequestState.Success<String>>(emissions[5])
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun retry_token_triggers_multiple_operation_again() = runTest {
+        val mockOperation1: suspend () -> String = suspend { "Result1" }
+        val mockOperation2: suspend () -> String = suspend { "Result2" }
+        val token = RetryToken()
+        val flow1 = requestStateFlow(
+            token = token,
+            operation = mockOperation1
+        )
+
+        val flow2 = requestStateFlow(
+            token = token,
+            operation = mockOperation2
+        )
+
+        val emissions1 = mutableListOf<RequestState<String>>()
+        val emissions2 = mutableListOf<RequestState<String>>()
+        val job1 = flow1
+            .onEach { emissions1.add(it) }
+            .launchIn(this)
+        val job2 = flow2
+            .onEach { emissions2.add(it) }
+            .launchIn(this)
+
+        advanceUntilIdle()
+        token.retry()
+        advanceUntilIdle()
+        token.retry()
+        advanceUntilIdle()
+        job1.cancel()
+        job2.cancel()
+
+        assertEquals(6, emissions1.size)
+        assertIs<RequestState.Loading<String>>(emissions1[0])
+        assertIs<RequestState.Success<String>>(emissions1[1])
+        assertIs<RequestState.Loading<String>>(emissions1[2])
+        assertIs<RequestState.Success<String>>(emissions1[3])
+        assertIs<RequestState.Loading<String>>(emissions1[4])
+        assertIs<RequestState.Success<String>>(emissions1[5])
+        assertEquals(6, emissions2.size)
+        assertIs<RequestState.Loading<String>>(emissions2[0])
+        assertIs<RequestState.Success<String>>(emissions2[1])
+        assertIs<RequestState.Loading<String>>(emissions2[2])
+        assertIs<RequestState.Success<String>>(emissions2[3])
+        assertIs<RequestState.Loading<String>>(emissions2[4])
+        assertIs<RequestState.Success<String>>(emissions2[5])
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun single_request_state_flow_with_config_showLoadingOnEmission_false_emits_success_and_no_loading() = runTest {
         val operation: suspend () -> String = { "Result" }
         val flow = requestStateFlow(
