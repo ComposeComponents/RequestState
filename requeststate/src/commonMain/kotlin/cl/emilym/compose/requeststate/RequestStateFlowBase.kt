@@ -37,6 +37,28 @@ data class RequestStateConfig(
 
 }
 
+/**
+ * Can be passed to a RequestStateFlow to externally trigger a retry without having access to the
+ * instance itself.
+ *
+ * ```kotlin
+ * val token = RetryToken()
+ * val flow = requestStateFlow(token) { ... }
+ * ...
+ * // Retries "flow"
+ * token.retry()
+ * ```
+ *
+ * Can be used to retry multiple flows at once:
+ * ```kotlin
+ * val token = RetryToken()
+ * val flow1 = requestStateFlow(token) { ... }
+ * val flow2 = requestStateFlow(token) { ... }
+ * ...
+ * // Retries "flow1" and "flow2"
+ * token.retry()
+ * ```
+ */
 class RetryToken {
     internal val trigger = MutableSharedFlow<TriggerSource>(
         extraBufferCapacity = 1,
