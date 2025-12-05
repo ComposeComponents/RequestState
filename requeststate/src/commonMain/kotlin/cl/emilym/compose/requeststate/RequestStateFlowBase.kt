@@ -5,6 +5,25 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 
+/**
+ * Catches exceptions emitted by operations and allows them to be retried, showing intermediate
+ * loading and initial states.
+ *
+ * ```kotlin
+ * val flow = requestStateFlow { ... }
+ *
+ * launch {
+ *      flow.collect { value ->
+ *          when (value) {
+ *              // Exceptions are caught and propagated as RequestState.Failure
+ *              // retry() restarts the operation
+ *              is RequestState.Failure -> flow.retry()
+ *              is RequestState.Success -> it.value // The result of the operation
+ *              else -> {}
+ *          }
+ *      }
+ * }
+ */
 interface RequestStateFlow<T>: Flow<RequestState<T>> {
 
     suspend fun retry()
